@@ -173,10 +173,17 @@ class Pdf extends Prince\Pdf {
 
 			// @see https://mpdf.github.io/reference/mpdf-functions/overview.html
 			$this->mpdf->SetBasePath( home_url( '/' ) );
-			$this->mpdf->SetCompression( true );
-
+			$this->mpdf->SetCompression( false );
+			$this->mpdf->SetDisplayMode('fullpage','tworight');
+			$this->mpdf->bleedMargin = 3;
+			$this->mpdf->cropMarkMargin = 8;
+			$this->mpdf->cropMarkLength = 8;
+			$this->mpdf->normalLineheight = 1.55;
 			// iterate over the xhtml domdocument
 			$this->iterator( $dom );
+
+
+
 
 			/****************************************
 			 * alternate route NOTES:
@@ -202,6 +209,9 @@ class Pdf extends Prince\Pdf {
 		return true;
 	}
 
+
+
+
 	/**
 	 * Give Mpdf all the things
 	 *
@@ -219,26 +229,29 @@ class Pdf extends Prince\Pdf {
 			'mpdf_page_size'      => 'format',
 			'mpdf_margin_left'    => 'margin_left',
 			'mpdf_margin_right'   => 'margin_right',
+			'mpdf_margin_left'    => 'margin_top',
+			'mpdf_margin_right'   => 'margin_bottom',
 			'mpdf_mirror_margins' => 'mirrorMargins',
 
 		];
 
 		// cherry picked
 		$config = [
-			'mode'                   => 's',
-			'format'                 => 'Letter',
-			'default_font_size'      => 0,
-			'default_font'           => '',
-			'margin_left'            => 15,
-			'margin_right'           => 15,
-			'margin_top'             => 16,
-			'margin_bottom'          => 16,
-			'margin_header'          => 9,
-			'margin_footer'          => 9,
-			'orientation'            => 'P',
+			'mode'                   => 'utf-8',
+			//'format'                 => 'A4',
+			'default_font_size'      => 9,
+			'default_font'           => 'lora',
+			//'margin_left'            => 5,
+			//'margin_right'           => 5,
+			//'margin_top'             => 5,
+			//'margin_bottom'          => 5,
+			//'margin_header'          => 0,
+			//'margin_footer'          => 0,
+			//'orientation'            => 'P',
 			'enableImports'          => false,
 			'anchor2Bookmark'        => 1,
 			'mirrorMargins'          => 1,
+			'bleedMargin' 		 	 => 3,
 			'tempDir'                => _MPDF_TEMP_PATH,
 			'defaultCssFile'         => $css_file,
 			'autoLangToFont'         => true,
@@ -247,8 +260,25 @@ class Pdf extends Prince\Pdf {
 			'defaultheaderline'      => 0,
 			'defaultheaderfontstyle' => 'I',
 			'defaultfooterfontstyle' => 'I',
+			'CSSselectMedia' => 'print',
 			'shrink_tables_to_fit'   => 1,
-			'use_kwt'                => true,
+			'use_kwt'                => false,
+			'dpi'         		 => 300,
+			'img_dpi'         	 => 300,
+			'fontdata' => [
+        			'cormorantgaramond' => [
+            				'R' => 'CormorantGaramond-Regular.ttf',
+            				'B' => 'CormorantGaramond-Bold.ttf',
+					'I' => 'CormorantGaramond-Italic.ttf',
+					'BI' => 'CormorantGaramond-BoldItalic.ttf',
+        			],
+				'lora' => [
+            				'R' => 'Lora-Regular.ttf',
+            				'B' => 'Lora-Bold.ttf',
+					'I' => 'Lora-Italic.ttf',
+					'BI' => 'Lora-BoldItalic.ttf',
+        			],
+    			],
 			//'debug'                => true, // @codingStandardsIgnoreLine
 		];
 
@@ -258,6 +288,10 @@ class Pdf extends Prince\Pdf {
 				$config[ $v ] = $this->options[ $k ];
 			}
 		}
+
+		//$format_size = PageFormat::getSizeFromName(options['format']);
+	
+		//$config[ 'format' ] => [120, 120];
 
 		return $config;
 
@@ -291,10 +325,17 @@ class Pdf extends Prince\Pdf {
 		$options = [
 			'paging'           => true,
 			'links'            => true,
+			'toc-orientation'  => 'P',
+			''				   => '',
 			'tocindent'        => 1,
-			'suppress'         => 'on',
-			'toc_bookmarkText' => 'Contents',
-			'toc_preHTML'      => '<h1 class="toc">Contents</h1>',
+			'suppress'         => 'off',
+			'toc-odd-header-value'=>'-1',
+			'toc-even-header-value'=>'-1',
+			'toc-odd-footer-value'=>'-1',
+			'toc-even-footer-value'=>'-1',
+			'toc_bookmarkText' => 'Inhaltsverzeichnis',
+			'toc_preHTML'      => '<h1 class="toc">Inhaltsverzeichnis</h1>'
+
 		];
 
 		$this->mpdf->TOCpagebreakByArray( $options );
@@ -333,7 +374,7 @@ class Pdf extends Prince\Pdf {
 
 		// first thing's first, gotta have a purty pikcher
 		if ( 1 === $this->options['mpdf_include_cover'] ) {
-			$this->addCover();
+			//$this->addCover();
 		}
 
 		foreach ( $pages as $page ) {
@@ -369,6 +410,9 @@ class Pdf extends Prince\Pdf {
 						$class          = 'front-matter-title';
 						$title          = $this->getNodeValue( $page, $element, $class );
 						$add_to_toc     = true;
+						
+						//$this->mpdf->AddPageByArray( $page_options );
+						
 						break;
 
 					case 'chap':
@@ -378,16 +422,19 @@ class Pdf extends Prince\Pdf {
 							'suppress'     => 'off',
 							'pagenumstyle' => '1',
 						];
-						$toc_level      = 1;
+						$toc_level      = 0;
 						$element        = 'h2';
 						$class          = 'chapter-title';
 						$title          = $this->getNodeValue( $page, $element, $class );
+						
+						$this->mpdf->AddPageByArray( $page_options );
+						
 						$add_to_toc     = true;
 						break;
 
 					case 'part':
 						$display_header = false;
-						$display_footer = true;
+						$display_footer = false;
 						$page_options   = [
 							'suppress'     => 'on',
 							'pagenumstyle' => '1',
@@ -397,6 +444,9 @@ class Pdf extends Prince\Pdf {
 						$class          = 'part-title';
 						$title          = $this->getNodeValue( $page, $element, $class );
 						$add_to_toc     = true;
+						
+						$this->mpdf->AddPageByArray( $page_options );
+						
 						break;
 
 					case 'back':
@@ -411,28 +461,82 @@ class Pdf extends Prince\Pdf {
 						$class          = 'back-matter-title';
 						$title          = $this->getNodeValue( $page, $element, $class );
 						$add_to_toc     = true;
+						
+						$this->mpdf->AddPageByArray( $page_options );
+						
 						break;
 
 					default:
+
 						$display_header = false;
 						$display_footer = false;
 						$page_options   = [
 							'suppress'     => 'on',
-							'margin_left'  => 15,
-							'margin_right' => 15,
+							//'margin_left'  => 15,
+							//'margin_right' => 15
 						];
 						$toc_level      = 0;
 						$element        = '';
 						$class          = '';
 						$title          = '';
 						$add_to_toc     = false;
+						
+						$elementId = $page->getAttribute( 'id' ) === NULL ? '' : $page->getAttribute( 'id' );
+						if($elementId != '')
+						{
+							switch ( $elementId ) {
+
+								case 'title-page':
+
+									$page_options   = [
+										'suppress'     => 'off',
+										//'margin_left'  => 15,
+										//'margin_right' => 15,
+										'type'=> 'NEXT-ODD',
+									];
+									
+									$this->mpdf->AddPageByArray( $page_options );
+									
+									break;
+
+								case 'half-title-page':
+
+									$page_options   = [
+										'suppress'     => 'off',
+										//'margin_left'  => 15,
+										//'margin_right' => 15,
+										'type'=> 'NEXT-ODD',
+									];
+									
+									$this->mpdf->AddPageByArray( $page_options );
+									
+									break;
+
+								default:
+
+									$page_options   = [
+										'suppress'     => 'off',
+										//'margin_left'  => 15,
+										//'margin_right' => 15,
+										//'type'=> 'NEXT-EVEN',
+									];
+									
+									$this->mpdf->AddPageByArray( $page_options );
+
+							}
+						}
+
+
+
+
 
 				}
 
 				/****************************************
 				 * Add Page to Document Array
 				 *****************************************/
-				$this->mpdf->AddPageByArray( $page_options );
+				//$this->mpdf->AddPageByArray( $page_options );
+				
 
 				/****************************************
 				 * Table of Contents
@@ -449,6 +553,9 @@ class Pdf extends Prince\Pdf {
 				$header = ( $display_header ) ? $this->getHeader( $display_header ) : '';
 
 				$this->mpdf->SetFooter( $footer );
+				//$this->mpdf->SetHTMLFooter($footer, 'O');
+				//$this->mpdf->SetHTMLFooter($footer, 'E');
+				//$this->mpdf->SetHTMLFooter($footer,'E');
 				$this->mpdf->SetHeader( $header );
 
 				/****************************************
@@ -456,10 +563,45 @@ class Pdf extends Prince\Pdf {
 				 *****************************************/
 				$html = $dom->saveHTML( $page );
 				$this->mpdf->WriteHTML( $html );
+
 			}
 		}
 
 	}
+
+
+	function renderPage( $title ) {
+	
+		$this->mpdf->AddPageByArray( $page_options );
+
+		/****************************************
+		 * Table of Contents
+		 *****************************************/
+		if ( $add_to_toc && 1 === $this->options['mpdf_include_toc'] ) {
+			$this->mpdf->TOC_Entry( $this->getTocEntry( $title ), $toc_level );
+			$this->mpdf->Bookmark( $this->getBookmarkEntry( $title, $class ), $toc_level );
+		}
+
+		/****************************************
+		 * Headers and Footers
+		 *****************************************/
+		$footer = ( $display_footer ) ? $this->getFooter( $display_footer ) : '';
+		$header = ( $display_header ) ? $this->getHeader( $display_header ) : '';
+
+		$this->mpdf->SetFooter( $footer );
+		//$this->mpdf->SetHTMLFooter($footer, 'O');
+		//$this->mpdf->SetHTMLFooter($footer, 'E');
+		//$this->mpdf->SetHTMLFooter($footer,'E');
+		$this->mpdf->SetHeader( $header );
+
+		/****************************************
+		 * Do the thing
+		 *****************************************/
+		$html = $dom->saveHTML( $page );
+		$this->mpdf->WriteHTML( $html );
+	
+	}
+
 
 	/**
 	 * Return the Table of Contents entry for this page.
@@ -515,7 +657,7 @@ class Pdf extends Prince\Pdf {
 	 *
 	 * @return string
 	 */
-	function getFooter( bool $display, $content = '' ) {
+	function getFooter( bool $display = false, $content = '' ) {
 
 		// bail early
 		if ( false === $display ) {
@@ -523,7 +665,7 @@ class Pdf extends Prince\Pdf {
 		}
 
 		// default content if none provided
-		$content = ( empty( $content ) ) ? ' | {PAGENO} | ' : $content;
+		$content = ( empty( $content ) ) ? '{PAGENO}' : $content;
 
 		// override
 		$footer = apply_filters( 'mpdf_get_footer', $content );
@@ -542,14 +684,15 @@ class Pdf extends Prince\Pdf {
 	 *
 	 * @return string
 	 */
-	function getHeader( bool $display, $content = '' ) {
+	function getHeader( bool $display = false, $content = '' ) {
 
 		// bail early
 		if ( false === $display ) {
 			return '';
 		}
 
-		$content = ( empty( $content ) ) ? ' | | ' . $this->bookTitle . '' : $content;
+		//$content = ( empty( $content ) ) ? ' | | ' . $this->bookTitle . '' : $content;
+		$content = ( empty( $content ) ) ? $this->bookTitle : $content;
 
 		// override
 		$header = apply_filters( 'mpdf_get_header', $content );
@@ -641,13 +784,16 @@ class Pdf extends Prince\Pdf {
 
 		// primary purpose is to deal with how mpdf class handles @page
 		if ( ! empty( $css ) ) {
+
+			$filtered = $css;
+
 			// page breaks in mpdf are created with 'AddPage()'
-			$filtered = preg_replace( '/page-break-(before|after|inside)\:(\s?)(right|auto|left|always|inherit);/i', 'page-break-$1: avoid;', $css );
+			$filtered = preg_replace( '/page-break-(before)\:(\s?)(right|auto|left|always|inherit);/i', 'page-break-$1: avoid;', $filtered );
 
 			// mPDF has its own class for toc
 			// 2018/02/23 - removing this, prince pdf options interfere ex. 'display:none'
 			//$filtered = preg_replace( '/#toc\s?/iU', '.mpdf_toc ', $filtered );
-
+  
 			// reference to page selectors force unwanted page breaks
 			$filtered = preg_replace( '/page\:\s?(.*);/iU', '', $filtered );
 
@@ -658,7 +804,7 @@ class Pdf extends Prince\Pdf {
 			$filtered = preg_replace( '/max-width\:/iU', 'width:', $filtered );
 
 			// mPDF has limited @page support
-			$filtered = preg_replace( '/(?:@(top*|bottom*|right*|left*|footnotes)\s?(.*)\s?{(.*)})/isU', '', $filtered );
+			//$filtered = preg_replace( '/(?:@(top*|bottom*|right*|left*|footnotes)\s?(.*)\s?{(.*)})/isU', '', $filtered );
 
 		}
 		$special  = 'img{max-width:100%}';
@@ -666,6 +812,7 @@ class Pdf extends Prince\Pdf {
 
 		return $mpdf_css . $filtered . $special;
 
+		//return $css;
 	}
 
 
